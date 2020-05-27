@@ -42,6 +42,10 @@ alias tks="tmux kill-session -t "
 alias tls="tmux ls"
 alias tns="tmux new-session -s"
 
+# xclip 
+alias pbcopy='xclip -selection clipboard'
+alias pbpaste='xclip -selection clipboard -o'
+
 # open github repo from git repo
 function hb() {
   # from https://jasonmccreary.me/articles/open-github-command-line/
@@ -298,6 +302,11 @@ eval "$(jump shell)"
 #if [ -f '/Users/fatih/Code/google-cloud-sdk/completion.zsh.inc' ]; then . '/Users/fatih/Code/google-cloud-sdk/completion.zsh.inc'; fi
 #export PATH="/usr/local/opt/mysql-client/bin:$PATH"
 
-export NVM_DIR="$HOME/.config/nvm"
+# To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
+source ~/.zsh/powerlevel10k/powerlevel10k.zsh-theme
+[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
+
+export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+
