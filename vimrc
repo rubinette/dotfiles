@@ -39,6 +39,10 @@ Plug 'yuezk/vim-js', {'for': 'javascript'}
 Plug 'maxmellon/vim-jsx-pretty', {'for': 'javascript'}
 Plug 'mattn/emmet-vim', {'for': 'javascript'}
 Plug 'styled-components/vim-styled-components', { 'branch': 'main', 'for': 'javascript' }
+Plug 'prettier/vim-prettier', {
+  \ 'do': 'yarn install',
+  \ 'for': ['javascript', 'typescript', 'css', 'less', 'scss', 'json', 'graphql', 'markdown', 'vue', 'yaml', 'html'] }
+
 
 call plug#end()
 
@@ -619,6 +623,10 @@ let g:UltiSnipsExpandTrigger="<tab>"
 let g:UltiSnipsJumpForwardTrigger="<tab>"  
 let g:UltiSnipsJumpBackwardTrigger="<s-tab>" 
 
+" ==================== vim-prettier ====================
+let g:prettier#autoformat_require_pragma = 1
+
+let g:prettier#config#parser = ""
 
 " ==================== Various other plugin settings ====================
 nmap  -  <Plug>(choosewin)
