@@ -625,8 +625,13 @@ let g:UltiSnipsJumpBackwardTrigger="<s-tab>"
 
 " ==================== vim-prettier ====================
 let g:prettier#autoformat_require_pragma = 1
-
 let g:prettier#config#parser = ""
+let g:prettier#config#semi = "true"                                                                       
+let g:prettier#config#trailing_comma = "all"
+
+" Running before saving async
+let g:prettier#autoformat = 0
+autocmd BufWritePre *.js,*.json,*.css,*.scss,*.less,*.graphql PrettierAsync
 
 " ==================== Various other plugin settings ====================
 nmap  -  <Plug>(choosewin)
