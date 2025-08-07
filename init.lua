@@ -11,18 +11,6 @@ if not vim.loop.fs_stat(lazypath) then
 end
 vim.opt.rtp:prepend(lazypath)
 
--- ChangeBackground changes the background mode based on macOS's `Appearance
--- setting. 
-local function change_background()
-  local m = vim.fn.system("defaults read -g AppleInterfaceStyle")
-  m = m:gsub("%s+", "") -- trim whitespace
-  if m == "Dark" then
-    vim.o.background = "dark" 
-  else
-    vim.o.background = "light" 
-  end
-end
-
 -- run :GoBuild or :GoTestCompile based on the go file
 local function build_go_files()
   if vim.endswith(vim.api.nvim_buf_get_name(0), "_test.go") then
@@ -31,6 +19,97 @@ local function build_go_files()
     vim.cmd("GoBuild")
   end
 end
+
+-- Track session state globally for the noop provider
+local noop_session_active = false
+
+local noop_terminal_provider = {
+  setup = function(config)
+    -- Change to git root directory first
+    local git_root = vim.fn.system("git rev-parse --show-toplevel 2>/dev/null"):gsub("\n", "")
+    if vim.v.shell_error == 0 and git_root ~= "" then
+      vim.cmd("cd " .. git_root)
+    end
+    print("ClaudeCode session configured")
+  end,
+
+  open = function(cmd_string, env_table, effective_config, focus)
+    -- -- Clean up existing Claude Code websocket servers (Neovim processes only)
+    -- local claude_dir = vim.fn.expand("~/.claude/ide")
+    -- if vim.fn.isdirectory(claude_dir) == 1 then
+    --   for _, lock_file in ipairs(vim.fn.glob(claude_dir .. "/*.lock", false, true)) do
+    --     local port = vim.fn.fnamemodify(lock_file, ":t:r")
+    --     local pids = vim.fn.system("lsof -ti:" .. port .. " 2>/dev/null"):gsub("\n", " ")
+    --     
+    --     for pid in pids:gmatch("%S+") do
+    --       local cmd = vim.fn.system("ps -p " .. pid .. " -o comm= 2>/dev/null"):gsub("\n", "")
+    --       if cmd:match("nvim") then
+    --         vim.fn.system("kill -9 " .. pid .. " 2>/dev/null")
+    --         vim.fn.delete(lock_file)
+    --       end
+    --     end
+    --   end
+    -- end
+
+    -- Mark session as active when opening
+    noop_session_active = true
+  end,
+
+  close = function()
+    -- Mark session as inactive when closing
+    noop_session_active = false
+    print("ClaudeCode session closed")
+  end,
+
+  simple_toggle = function(cmd_string, env_table, effective_config)
+    -- Check if already active and print message
+    if noop_session_active then
+      print("ClaudeCode is already running, focusing")
+
+      -- Jump to the rightmost tmux pane (where Claude usually runs)
+      vim.fn.system("tmux select-pane -R")
+      return
+    end
+    
+    -- Mark session as active when starting
+    noop_session_active = true
+    print("ClaudeCode session started")
+  end,
+
+  focus_toggle = function(cmd_string, env_table, effective_config)
+    print("Focused on Claude")
+    -- Jump to the rightmost tmux pane (where Claude usually runs)
+    vim.fn.system("tmux select-pane -R")
+  end,
+
+  get_active_bufnr = function()
+    -- Return nil since there's no terminal buffer
+    return nil
+  end,
+
+  is_available = function()
+    -- Always available since it does nothing
+    return true
+  end,
+
+  -- Optional function
+  toggle = function(cmd_string, env_table, effective_config)
+    -- Check if already active and print message
+    if noop_session_active then
+      print("ClaudeCode is already running")
+      return
+    end
+    
+    -- Mark session as active when starting
+    noop_session_active = true
+    print("ClaudeCode session started")
+  end,
+
+  _get_terminal_for_test = function()
+    -- For testing only - return nil
+    return nil
+  end,
+}
 
 ----------------
 --- plugins ---
@@ -42,11 +121,19 @@ require("lazy").setup({
     "ellisonleao/gruvbox.nvim", 
     priority = 1000, -- make sure to load this before all the other start plugins
     config = function ()
-      change_background()
       require("gruvbox").setup({
         contrast = "hard"
       })
       vim.cmd([[colorscheme gruvbox]])
+    end,
+  },
+
+  -- automatic dark mode
+  -- requires: brew install cormacrelf/tap/dark-notify
+  { 
+    "cormacrelf/dark-notify",
+    config = function ()
+      require("dark_notify").run()
     end,
   },
 
@@ -285,65 +372,97 @@ require("lazy").setup({
   },
 
 
-  { -- Fuzzy Finder (files, lsp, etc)
-    'nvim-telescope/telescope.nvim',
-    event = 'VimEnter',
-    branch = '0.1.x',
-    dependencies = {
-      'nvim-lua/plenary.nvim',
-      { -- If encountering errors, see telescope-fzf-native README for installation instructions
-        'nvim-telescope/telescope-fzf-native.nvim',
-
-        -- `build` is used to run some command when the plugin is installed/updated.
-        -- This is only run then, not every time Neovim starts up.
-        build = 'make',
-
-        -- `cond` is a condition used to determine whether this plugin should be
-        -- installed and loaded.
-        cond = function()
-          return vim.fn.executable 'make' == 1
-        end,
-      },
-      { 'nvim-telescope/telescope-ui-select.nvim' },
-
-      -- Useful for getting pretty icons, but requires a Nerd Font.
-      { 'nvim-tree/nvim-web-devicons', enabled = vim.g.have_nerd_font },
+  {
+    "coder/claudecode.nvim",
+    config = function() 
+      require("claudecode").setup({
+        terminal = {
+          provider = noop_terminal_provider,
+        },
+      })
+    end,
+    lazy = false,
+    opts = {
+      terminal_cmd = "/Users/fatih/.local/bin/claude",
     },
+    cmd = {
+      "ClaudeCode",
+      "ClaudeCodeFocus",
+      "ClaudeCodeSelectModel",
+      "ClaudeCodeAdd",
+      "ClaudeCodeSend",
+      "ClaudeCodeTreeAdd",
+      "ClaudeCodeDiffAccept",
+      "ClaudeCodeDiffDeny",
+    },
+    keys = {
+      { "<leader>c", nil, desc = "AI/Claude Code" },
+      { "<C-t>", "<cmd>ClaudeCode<cr>", desc = "Toggle Claude" },
+      { "<leader>cf", "<cmd>ClaudeCodeFocus<cr>", desc = "Focus Claude" },
+      { "<leader>cr", "<cmd>ClaudeCode --resume<cr>", desc = "Resume Claude" },
+      { "<leader>cC", "<cmd>ClaudeCode --continue<cr>", desc = "Continue Claude" },
+      { "<leader>cm", "<cmd>ClaudeCodeSelectModel<cr>", desc = "Select Claude model" },
+      { "<leader>ca", "<cmd>ClaudeCodeAdd %<cr>", desc = "Add current buffer" },
+      { "<leader>cs", "<cmd>ClaudeCodeSend<cr>", mode = "v", desc = "Send to Claude" },
+      {
+        "<leader>cs",
+        "<cmd>ClaudeCodeTreeAdd<cr>",
+        desc = "Add file",
+        ft = { "NvimTree", "neo-tree", "oil" },
+      },
+      { "<leader>da", "<cmd>ClaudeCodeDiffAccept<cr>", desc = "Accept diff" },
+      { "<leader>dd", "<cmd>ClaudeCodeDiffDeny<cr>", desc = "Deny diff" },
+    }
+  },
 
-    config = function()
-      require('telescope').setup {
-        defaults = {
-          layout_strategy = 'center',
-          sorting_strategy = "ascending",
-          layout_config = {
-            prompt_position = "top"  -- search bar at the top
+  -- { -- Fuzzy Finder (files, lsp, etc)
+  {
+    "ibhagwan/fzf-lua",
+    dependencies = { "nvim-tree/nvim-web-devicons" },
+    opts = {},
+    config = function() 
+      require("fzf-lua").register_ui_select()
+      require('fzf-lua').setup {
+        oldfiles = {
+           -- include current sessions in old_files mode
+           include_current_session = true,
+        },
+        winopts = {
+          -- split = "belowright 10new",
+          backdrop = 100,
+          border = "single",
+          preview = {
+            hidden = true,
+            default = "bat",
+            border = "rounded",
+            title = false,
+            layout = "vertical",
+            horizontal = "right:50%",
           },
         },
-        extensions = {
-          ['ui-select'] = {
-            require('telescope.themes').get_dropdown(),
-          },
+        git = {
+           files = {
+             cwd_header = false,
+             prompt        = '❯ ',
+             cmd           = 'git ls-files --exclude-standard',
+             multiprocess  = true,  -- run command in a separate process
+             git_icons     = false, -- show git icons?
+             file_icons    = false, -- show file icons (true|"devicons"|"mini")?
+             color_icons   = false, -- colorize file|git icons
+           },
         },
-        picker = {
-          find_files = {
-            theme = "dropdown",
-          }
+        files = {
+          git_files = false,
+          cwd_header = false,
+          cwd_prompt = true,
+          file_icons = false,
         }
       }
 
-      -- Enable Telescope extensions if they are installed
-      pcall(require('telescope').load_extension, 'fzf')
-      pcall(require('telescope').load_extension, 'ui-select')
-
-      -- See `:help telescope.builtin`
-      local builtin = require 'telescope.builtin'
-      vim.keymap.set('n', '<C-p>', builtin.git_files, {})
-      vim.keymap.set('n', '<C-b>', builtin.find_files, {})
-      vim.keymap.set('n', '<C-g>', builtin.lsp_document_symbols, {})
-      vim.keymap.set('n', '<leader>td', builtin.diagnostics, {})
-      vim.keymap.set('n', '<leader>gs', builtin.grep_string, {})
-      vim.keymap.set('n', '<leader>gg', builtin.live_grep, {})
-    end,
+     vim.keymap.set("n", "<C-p>", require("fzf-lua").git_files, {})
+     vim.keymap.set("n", "<C-b>", require("fzf-lua").files, {})
+     vim.keymap.set("n", "<C-g>", require("fzf-lua").lsp_document_symbols, {})
+    end
   },
 
   -- LSP Plugins
@@ -637,12 +756,14 @@ vim.keymap.set('i', 'jk', '<ESC>')
 -- Copy current filepath to system clipboard (relative to git root, fallback to absolute path)
 vim.keymap.set('n', '<Leader>e', function()
   local git_prefix = vim.fn.system('git rev-parse --show-prefix'):gsub('\n', '')
+  local path
   if vim.v.shell_error == 0 then
-    local relative_path = git_prefix .. vim.fn.expand('%')
-    vim.fn.setreg('+', relative_path)
+    path = git_prefix .. vim.fn.expand('%')
   else
-    vim.fn.setreg('+', vim.fn.expand('%:p'))
+    path = vim.fn.expand('%:p')
   end
+  vim.fn.setreg('+', path)
+  print('Copied to clipboard: ' .. path)
 end, { silent = true })
 
 -- Remove search highlight
@@ -682,6 +803,12 @@ vim.keymap.set('', '<C-j>', '<C-W>j')
 vim.keymap.set('', '<C-k>', '<C-W>k')
 vim.keymap.set('', '<C-h>', '<C-W>h')
 vim.keymap.set('', '<C-l>', '<C-W>l')
+
+-- Terminal mode window switching
+vim.keymap.set('t', '<C-h>', '<C-\\><C-N><C-w>h')
+vim.keymap.set('t', '<C-j>', '<C-\\><C-N><C-w>j')
+vim.keymap.set('t', '<C-k>', '<C-\\><C-N><C-w>k')
+vim.keymap.set('t', '<C-l>', '<C-\\><C-N><C-w>l')
 
 -- Visual linewise up and down by default (and use gj gk to go quicker)
 vim.keymap.set('n', '<Up>', 'gk')
@@ -724,6 +851,7 @@ vim.api.nvim_create_user_command("GBrowse", 'lua require("git.browse").open(true
 vim.keymap.set('n', '<leader>n', ':NvimTreeToggle<CR>', { noremap = true })
 vim.keymap.set('n', '<leader>f', ':NvimTreeFindFileToggle!<CR>', { noremap = true })
 
+
 -- vim-go
 vim.keymap.set('n', '<leader>b', build_go_files)
 vim.api.nvim_create_user_command("A", ":lua vim.api.nvim_call_function('go#alternate#Switch', {true, 'edit'})<CR>", {})
@@ -737,6 +865,14 @@ vim.api.nvim_create_autocmd('Filetype', {
   pattern = { 'go' },
   command = 'setlocal noexpandtab tabstop=4 shiftwidth=4'
 })
+
+
+-- ClaudeCode mapping
+vim.keymap.set('n', '<C-t>', ':ClaudeCode<CR>', { noremap = true, silent = true })
+vim.keymap.set('n', '<leader>ca', '<cmd>ClaudeCodeAdd %<cr>', { desc = "Add current buffer" })
+vim.keymap.set({'n', 'v'}, '<leader>cs', '<cmd>ClaudeCodeSend<cr>', { desc = "Send to Claude" })
+
+-- The cleanup and git root logic is now handled in the open function above
 
 
 -- automatically resize all vim buffers if I resize the terminal window
@@ -826,6 +962,5 @@ vim.api.nvim_create_autocmd('LspAttach', {
     vim.keymap.set('n', 'gi', vim.lsp.buf.implementation, opts)
     vim.keymap.set('n', '<leader>cl', vim.lsp.codelens.run, opts)
     vim.keymap.set('n', '<leader>rn', vim.lsp.buf.rename, opts)
-    vim.keymap.set({'n', 'v'}, '<leader>ca', vim.lsp.buf.code_action, opts)
   end,
 })
