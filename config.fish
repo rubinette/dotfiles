@@ -1,7 +1,8 @@
-set -gxp PATH $HOME/go/bin $HOME/.local/bin /usr/local/opt/python@3.11/libexec/bin /usr/local/sbin /opt/homebrew/bin /opt/homebrew/opt/node@20/bin
+set -gxp PATH $HOME/go/bin $HOME/.local/bin /usr/local/opt/python@3.11/libexec/bin /usr/local/sbin /opt/homebrew/bin /opt/homebrew/opt/node@20/bin /opt/homebrew/opt/postgresql@17/bin $HOME/.cargo/bin
 set -gx GOBIN $HOME/go/bin
 set -gx EDITOR nvim
 set -gx FZF_CTRL_T_COMMAND nvim
+set -gx FZF_DEFAULT_COMMAND "fd --type f --hidden --follow --exclude .git"
 
 # shell integration, if we don't set it, working directory features won't work
 set -gx GHOSTTY_SHELL_INTEGRATION_XDG_DIR /Applications/Ghostty.app/Contents/Resources/ghostty/shell-integration
