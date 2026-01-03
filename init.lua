@@ -1,5 +1,5 @@
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
-if not vim.loop.fs_stat(lazypath) then
+if not vim.uv.fs_stat(lazypath) then
   vim.fn.system({
     "git",
     "clone",
@@ -20,96 +20,6 @@ local function build_go_files()
   end
 end
 
--- Track session state globally for the noop provider
--- local noop_session_active = false
--- local noop_terminal_provider = {
---   setup = function(config)
---     -- Change to git root directory first
---     local git_root = vim.fn.system("git rev-parse --show-toplevel 2>/dev/null"):gsub("\n", "")
---     if vim.v.shell_error == 0 and git_root ~= "" then
---       vim.cmd("cd " .. git_root)
---     end
---     print("ClaudeCode session configured")
---   end,
---
---   open = function(cmd_string, env_table, effective_config, focus)
---     -- -- Clean up existing Claude Code websocket servers (Neovim processes only)
---     -- local claude_dir = vim.fn.expand("~/.claude/ide")
---     -- if vim.fn.isdirectory(claude_dir) == 1 then
---     --   for _, lock_file in ipairs(vim.fn.glob(claude_dir .. "/*.lock", false, true)) do
---     --     local port = vim.fn.fnamemodify(lock_file, ":t:r")
---     --     local pids = vim.fn.system("lsof -ti:" .. port .. " 2>/dev/null"):gsub("\n", " ")
---     --     
---     --     for pid in pids:gmatch("%S+") do
---     --       local cmd = vim.fn.system("ps -p " .. pid .. " -o comm= 2>/dev/null"):gsub("\n", "")
---     --       if cmd:match("nvim") then
---     --         vim.fn.system("kill -9 " .. pid .. " 2>/dev/null")
---     --         vim.fn.delete(lock_file)
---     --       end
---     --     end
---     --   end
---     -- end
---
---     -- Mark session as active when opening
---     noop_session_active = true
---   end,
---
---   close = function()
---     -- Mark session as inactive when closing
---     noop_session_active = false
---     print("ClaudeCode session closed")
---   end,
---
---   simple_toggle = function(cmd_string, env_table, effective_config)
---     -- Check if already active and print message
---     if noop_session_active then
---       print("ClaudeCode is already running, focusing")
---
---       -- Jump to the rightmost tmux pane (where Claude usually runs)
---       vim.fn.system("tmux select-pane -R")
---       return
---     end
---
---     -- Mark session as active when starting
---     noop_session_active = true
---     print("ClaudeCode session started")
---   end,
---
---   focus_toggle = function(cmd_string, env_table, effective_config)
---     print("Focused on Claude")
---     -- Jump to the rightmost tmux pane (where Claude usually runs)
---     vim.fn.system("tmux select-pane -R")
---   end,
---
---   get_active_bufnr = function()
---     -- Return nil since there's no terminal buffer
---     return nil
---   end,
---
---   is_available = function()
---     -- Always available since it does nothing
---     return true
---   end,
---
---   -- Optional function
---   toggle = function(cmd_string, env_table, effective_config)
---     -- Check if already active and print message
---     if noop_session_active then
---       print("ClaudeCode is already running")
---       return
---     end
---
---     -- Mark session as active when starting
---     noop_session_active = true
---     print("ClaudeCode session started")
---   end,
---
---   _get_terminal_for_test = function()
---     -- For testing only - return nil
---     return nil
---   end,
--- }
---
 ----------------
 --- plugins ---
 ----------------
@@ -216,7 +126,7 @@ require("lazy").setup({
           -- Disable slow treesitter highlight for large files
           disable = function(lang, buf)
             local max_filesize = 100 * 1024 -- 100 KB
-            local ok, stats = pcall(vim.loop.fs_stat, vim.api.nvim_buf_get_name(buf))
+            local ok, stats = pcall(vim.uv.fs_stat, vim.api.nvim_buf_get_name(buf))
             if ok and stats and stats.size > max_filesize then
               return true
             end
@@ -349,55 +259,51 @@ require("lazy").setup({
   },
 
 
-  -- {
-  --   "coder/claudecode.nvim",
-  --   config = function() 
-  --     require("claudecode").setup({
-  --       terminal = {
-  --         provider = noop_terminal_provider,
-  --       },
-  --     })
-  --   end,
-  --   lazy = false,
-  --   opts = {
-  --     terminal_cmd = "/Users/fatih/.local/bin/claude",
-  --   },
-  --   cmd = {
-  --     "ClaudeCode",
-  --     "ClaudeCodeFocus",
-  --     "ClaudeCodeSelectModel",
-  --     "ClaudeCodeAdd",
-  --     "ClaudeCodeSend",
-  --     "ClaudeCodeTreeAdd",
-  --     "ClaudeCodeDiffAccept",
-  --     "ClaudeCodeDiffDeny",
-  --   },
-  --   keys = {
-  --     { "<leader>c", nil, desc = "AI/Claude Code" },
-  --     { "<C-t>", "<cmd>ClaudeCode<cr>", desc = "Toggle Claude" },
-  --     { "<leader>cf", "<cmd>ClaudeCodeFocus<cr>", desc = "Focus Claude" },
-  --     { "<leader>cr", "<cmd>ClaudeCode --resume<cr>", desc = "Resume Claude" },
-  --     { "<leader>cC", "<cmd>ClaudeCode --continue<cr>", desc = "Continue Claude" },
-  --     { "<leader>cm", "<cmd>ClaudeCodeSelectModel<cr>", desc = "Select Claude model" },
-  --     { "<leader>ca", "<cmd>ClaudeCodeAdd %<cr>", desc = "Add current buffer" },
-  --     { "<leader>cs", "<cmd>ClaudeCodeSend<cr>", mode = "v", desc = "Send to Claude" },
-  --     {
-  --       "<leader>cs",
-  --       "<cmd>ClaudeCodeTreeAdd<cr>",
-  --       desc = "Add file",
-  --       ft = { "NvimTree", "neo-tree", "oil" },
-  --     },
-  --     { "<leader>da", "<cmd>ClaudeCodeDiffAccept<cr>", desc = "Accept diff" },
-  --     { "<leader>dd", "<cmd>ClaudeCodeDiffDeny<cr>", desc = "Deny diff" },
-  --   }
-  -- },
-
   {
-    "sourcegraph/amp.nvim",
-    branch = "main", 
+    "coder/claudecode.nvim",
     lazy = false,
-    opts = { auto_start = true, log_level = "info" },
+    opts = {
+      terminal_cmd = "/Users/fatih/.local/bin/claude",
+      terminal = {
+          provider = "none", -- no UI actions; server + tools remain available
+      },
+    },
+    cmd = {
+      "ClaudeCode",
+      "ClaudeCodeFocus",
+      "ClaudeCodeSelectModel",
+      "ClaudeCodeAdd",
+      "ClaudeCodeSend",
+      "ClaudeCodeTreeAdd",
+      "ClaudeCodeDiffAccept",
+      "ClaudeCodeDiffDeny",
+    },
+    keys = {
+      { "<leader>c", nil, desc = "AI/Claude Code" },
+      { "<C-t>", "<cmd>ClaudeCode<cr>", desc = "Toggle Claude" },
+      { "<leader>cf", "<cmd>ClaudeCodeFocus<cr>", desc = "Focus Claude" },
+      { "<leader>cr", "<cmd>ClaudeCode --resume<cr>", desc = "Resume Claude" },
+      { "<leader>cC", "<cmd>ClaudeCode --continue<cr>", desc = "Continue Claude" },
+      { "<leader>cm", "<cmd>ClaudeCodeSelectModel<cr>", desc = "Select Claude model" },
+      { "<leader>ca", "<cmd>ClaudeCodeAdd %<cr>", desc = "Add current buffer" },
+      { "<leader>cs", "<cmd>ClaudeCodeSend<cr>", mode = "v", desc = "Send to Claude" },
+      {
+        "<leader>cs",
+        "<cmd>ClaudeCodeTreeAdd<cr>",
+        desc = "Add file",
+        ft = { "NvimTree", "neo-tree", "oil" },
+      },
+      { "<leader>da", "<cmd>ClaudeCodeDiffAccept<cr>", desc = "Accept diff" },
+      { "<leader>dd", "<cmd>ClaudeCodeDiffDeny<cr>", desc = "Deny diff" },
+    }
   },
+
+  -- {
+  --   "sourcegraph/amp.nvim",
+  --   branch = "main", 
+  --   lazy = false,
+  --   opts = { auto_start = true, log_level = "info" },
+  -- },
 
   {
       'brianhuster/live-preview.nvim',
@@ -410,9 +316,12 @@ require("lazy").setup({
   -- { -- Fuzzy Finder (files, lsp, etc)
   {
     "ibhagwan/fzf-lua",
-    dependencies = { "nvim-tree/nvim-web-devicons" },
+    dependencies = {
+      "nvim-tree/nvim-web-devicons",
+      "elanmed/fzf-lua-frecency.nvim",
+    },
     opts = {},
-    config = function() 
+    config = function()
       require("fzf-lua").register_ui_select()
       require('fzf-lua').setup {
         oldfiles = {
@@ -451,7 +360,22 @@ require("lazy").setup({
         }
       }
 
-     vim.keymap.set("n", "<C-p>", require("fzf-lua").git_files, {})
+      -- Setup frecency for fzf-lua (tracks frequently + recently used files)
+      require('fzf-lua-frecency').setup()
+
+     vim.keymap.set("n", "<C-p>", function()
+       -- Get git root to use as cwd (handles autochdir)
+       local git_root = vim.fn.systemlist("git rev-parse --show-toplevel")[1]
+       if vim.v.shell_error ~= 0 then
+         git_root = vim.fn.getcwd()
+       end
+       require('fzf-lua-frecency').frecency({
+         file_icons = false,
+         git_icons = false,
+         cwd_only = true,  -- only show files from current repo
+         cwd = git_root,   -- use git root, not autochdir path
+       })
+     end, {})
      vim.keymap.set("n", "<C-b>", require("fzf-lua").files, {})
      vim.keymap.set("n", "<C-g>", require("fzf-lua").lsp_document_symbols, {})
     end
@@ -473,71 +397,11 @@ require("lazy").setup({
 
   { 'Bilal2453/luvit-meta', lazy = true },
 
-  {
-    'neovim/nvim-lspconfig',
-    dependencies = {
-      -- Automatically install LSPs and related tools to stdpath for Neovim
-      { 'williamboman/mason.nvim', config = true }, -- NOTE: Must be loaded before dependants
-      'williamboman/mason-lspconfig.nvim',
-      'WhoIsSethDaniel/mason-tool-installer.nvim',
+  -- Useful status updates for LSP
+  { 'j-hui/fidget.nvim', opts = {} },
 
-      -- Useful status updates for LSP.
-      -- NOTE: `opts = {}` is the same as calling `require('fidget').setup({})`
-      { 'j-hui/fidget.nvim', opts = {} },
-
-      -- Allows extra capabilities provided by nvim-cmp
-      'hrsh7th/cmp-nvim-lsp',
-    },
-    config = function()
-      local capabilities = vim.lsp.protocol.make_client_capabilities()
-      capabilities = vim.tbl_deep_extend('force', capabilities, require('cmp_nvim_lsp').default_capabilities())
-
-      local servers = {
-        gopls = {
-          capabilities = capabilities,
-        },
-        lua_ls = {
-          settings = {
-            Lua = {
-              completion = {
-                callSnippet = 'Replace',
-              },
-            },
-          },
-        },
-      }
-
-      -- Ensure the servers and tools above are installed
-      --  To check the current status of installed tools and/or manually install
-      --  other tools, you can run
-      --    :Mason
-      --
-      --  You can press `g?` for help in this menu.
-      require('mason').setup()
-
-      -- You can add other tools here that you want Mason to install
-      -- for you, so that they are available from within Neovim.
-      local ensure_installed = vim.tbl_keys(servers or {})
-      vim.list_extend(ensure_installed, {
-        'stylua', -- Used to format Lua code
-        'gofumpt', -- Used to format Lua code
-      })
-      require('mason-tool-installer').setup { ensure_installed = ensure_installed }
-
-      require('mason-lspconfig').setup {
-        handlers = {
-          function(server_name)
-            local server = servers[server_name] or {}
-            -- This handles overriding only values explicitly passed
-            -- by the server configuration above. Useful when disabling
-            -- certain features of an LSP (for example, turning off formatting for ts_ls)
-            server.capabilities = vim.tbl_deep_extend('force', {}, capabilities, server.capabilities or {})
-            require('lspconfig')[server_name].setup(server)
-          end,
-        },
-      }
-    end,
-  },
+  -- Extra capabilities for nvim-cmp
+  { 'hrsh7th/cmp-nvim-lsp' },
 
   {
     "L3MON4D3/LuaSnip",
@@ -687,6 +551,40 @@ require("lazy").setup({
 
 
 })
+
+----------------
+--- LSP Setup (Neovim 0.11 native) ---
+----------------
+
+-- Get capabilities from cmp-nvim-lsp for better completion
+local capabilities = vim.lsp.protocol.make_client_capabilities()
+capabilities = vim.tbl_deep_extend('force', capabilities, require('cmp_nvim_lsp').default_capabilities())
+
+-- gopls (install: go install golang.org/x/tools/gopls@latest)
+vim.lsp.config('gopls', {
+  cmd = { 'gopls' },
+  filetypes = { 'go', 'gomod', 'gowork', 'gotmpl' },
+  root_markers = { 'go.mod', 'go.work', '.git' },
+  capabilities = capabilities,
+})
+
+-- lua-language-server (install: brew install lua-language-server)
+vim.lsp.config('lua_ls', {
+  cmd = { 'lua-language-server' },
+  filetypes = { 'lua' },
+  root_markers = { '.luarc.json', '.luarc.jsonc', '.stylua.toml', 'stylua.toml', '.git' },
+  capabilities = capabilities,
+  settings = {
+    Lua = {
+      completion = {
+        callSnippet = 'Replace',
+      },
+    },
+  },
+})
+
+-- Enable the LSP servers
+vim.lsp.enable({ 'gopls', 'lua_ls' })
 
 ----------------
 --- SETTINGS ---
@@ -857,16 +755,16 @@ vim.api.nvim_create_autocmd('Filetype', {
 
 -- -- ClaudeCode mapping
 vim.keymap.set('n', '<C-t>', ':ClaudeCode<CR>', { noremap = true, silent = true })
-vim.keymap.set('n', '<leader>ca', '<cmd>ClaudeCodeAdd %<cr>', { desc = "Add current buffer" })
-vim.keymap.set({'n', 'v'}, '<leader>cs', '<cmd>ClaudeCodeSend<cr>', { desc = "Send to Claude" })
+vim.keymap.set('n', '<leader>aa', '<cmd>ClaudeCodeAdd %<cr>', { desc = "Add current buffer" })
+vim.keymap.set({'n', 'v'}, '<leader>as', '<cmd>ClaudeCodeSend<cr>', { desc = "Send to Claude" })
 
--- Amp mapping
-vim.keymap.set('n', '<leader>ab', '<cmd>AmpBuffer<cr>', { desc = "Create Amp buffer" })
-vim.keymap.set('x', '<leader>ab', ":'<,'>AmpBuffer<CR>", { desc = "Create Amp buffer from selection" })
--- vim.keymap.set('n', '<leader>as', '<cmd>AmpSendBuffer<cr>', { desc = "Send buffer to Amp" })
-vim.keymap.set('v', '<leader>as', ":'<,'>AmpPromptRef<CR>", { desc = "Send selection to Prompt" })
-vim.keymap.set('n', '<leader>am', '<cmd>AmpMessage %<cr>', { desc = "Send message to Amp" })
-vim.keymap.set('x', '<leader>aa', ":'<,'>AmpAppendBuffer<CR>", { desc = "Append selection to Amp buffer" })
+-- -- Amp mapping
+-- vim.keymap.set('n', '<leader>ab', '<cmd>AmpBuffer<cr>', { desc = "Create Amp buffer" })
+-- vim.keymap.set('x', '<leader>ab', ":'<,'>AmpBuffer<CR>", { desc = "Create Amp buffer from selection" })
+-- -- vim.keymap.set('n', '<leader>as', '<cmd>AmpSendBuffer<cr>', { desc = "Send buffer to Amp" })
+-- vim.keymap.set('v', '<leader>as', ":'<,'>AmpPromptRef<CR>", { desc = "Send selection to Prompt" })
+-- vim.keymap.set('n', '<leader>am', '<cmd>AmpMessage %<cr>', { desc = "Send message to Amp" })
+-- vim.keymap.set('x', '<leader>aa', ":'<,'>AmpAppendBuffer<CR>", { desc = "Append selection to Amp buffer" })
 
 -- Add selected text directly to prompt
 vim.api.nvim_create_user_command("AmpPromptSelection", function(opts)
@@ -1128,7 +1026,12 @@ vim.api.nvim_create_autocmd('TextYankPost', {
 })
 
 -- disable diagnostics, I didn't like them
-vim.lsp.handlers["textDocument/publishDiagnostics"] = function() end
+vim.diagnostic.config({
+  virtual_text = false,
+  signs = false,
+  underline = false,
+  update_in_insert = false,
+})
 
 -- Run gofmt/gofmpt, import packages automatically on save
 vim.api.nvim_create_autocmd('BufWritePre', {
