@@ -11,9 +11,61 @@ set show-changes = no
 # Optionally, use the old and faster but less acurate graph renderer
 set main-view-commit-title-graph = v1
 
+# Gruvbox colorscheme — uses ANSI colors so Ghostty theme controls the shades
+# automatically adapts to light/dark via Gruvbox Light Hard / Gruvbox Dark Hard
+color default default default
+color cursor black color10 bold
+color title-focus default white bold
+color title-blur default white
+color id yellow default bold
+color main-commit default default
+color author blue default
+color date green default
+color diff-header yellow default bold
+color diff-index yellow default
+color diff-oldmode yellow default
+color diff-newmode yellow default
+color "rename from" yellow default
+color "rename to" yellow default
+color diff-chunk magenta default
+color "Merge:" blue default
+color "--- " red default
+color "+++ " green default
+color "@@" magenta default
+color diff-stat blue default
+color diff-add green default
+color diff-del red default
+color "diff-add-highlight" green default bold
+color "diff-del-highlight" red default bold
+color status green default
+color "Author:" yellow default
+color "Commit:" yellow default
+color "AuthorDate:" green default
+color "CommitDate:" green default
+color "Date:" green default
+color graph-commit yellow default bold
+color palette-0 yellow default
+color palette-1 blue default
+color palette-2 green default
+color palette-3 cyan default
+color palette-4 red default
+color palette-5 magenta default
+color palette-6 cyan default
+color delimiter white default
+color main-tracked green default bold
+color main-tag yellow default bold
+color main-local-tag yellow default
+color main-remote red default
+color main-ref blue default bold
+color main-head yellow default bold
+
 bind generic r refresh
 bind status d !@?rm -rf %(file) # delete untracked files
-bind generic y @sh -c "printf '%(file)' | pbcopy"
+bind main y @sh -c "printf '%(commit)' | pbcopy"
+bind diff y @sh -c "printf '%(commit)' | pbcopy"
+bind log y @sh -c "printf '%(commit)' | pbcopy"
+bind blame y @sh -c "printf '%(commit)' | pbcopy"
+bind refs y @sh -c "printf '%(commit)' | pbcopy"
 
 
 # Allow moving in the main menu while displaying a diff in the bottom of the

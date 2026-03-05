@@ -41,10 +41,6 @@ macos-option-as-alt = left
 
 # Keybindings
 
-# Map cmd+enter to ctrl+enter (CSI-u: keycode 13 = Enter, modifier 5 = Ctrl).
-# Allows cmd+enter to pass through tmux to Amp CLI as the submit key.
-# keybind = cmd+enter=csi:13;5u
-
 # open vertical split
 keybind = super+d=text:\x06\x76
 
@@ -82,13 +78,6 @@ keybind = super+digit6=text:\x06\x36
 keybind = super+digit7=text:\x06\x37
 keybind = super+digit8=text:\x06\x38
 keybind = super+digit9=text:\x06\x39
-
-# show tmux pane numbers to jump between panes
-keybind = super+g=text:\x06\x71
-
-# enter tmux copy mode (scroll mode) with cmd+f
-# unbind the default ghostty search (cmd+f) since we don't use it
-keybind = super+f=text:\x06\x20
 
 # Claude Code shift+enter support
 keybind = shift+enter=text:\n

@@ -298,12 +298,12 @@ require("lazy").setup({
     }
   },
 
-  -- {
-  --   "sourcegraph/amp.nvim",
-  --   branch = "main", 
-  --   lazy = false,
-  --   opts = { auto_start = true, log_level = "info" },
-  -- },
+  {
+    "sourcegraph/amp.nvim",
+    branch = "main", 
+    lazy = false,
+    opts = { auto_start = true, log_level = "info" },
+  },
 
   {
       'brianhuster/live-preview.nvim',
@@ -657,6 +657,13 @@ vim.keymap.set('n', '<Leader>e', function()
   print('Copied to clipboard: ' .. path)
 end, { silent = true })
 
+-- Copy absolute filepath to system clipboard
+vim.keymap.set('n', '<Leader>r', function()
+  local path = vim.fn.expand('%:p')
+  vim.fn.setreg('+', path)
+  print('Copied to clipboard: ' .. path)
+end, { silent = true })
+
 -- Remove search highlight
 vim.keymap.set('n', '<Leader><space>', ':nohlsearch<CR>')
 
@@ -686,9 +693,6 @@ vim.keymap.set('i', '<C-c>', '<ESC>')
 -- clipboard
 vim.keymap.set("x", "p", "\"_dP")
 
--- rename the word under the cursor 
-vim.keymap.set("n", "<leader>rw", [[:%s/\<<C-r><C-w>\>/<C-r><C-w>/gI<Left><Left><Left>]])
-
 -- Better split switching
 vim.keymap.set('', '<C-j>', '<C-W>j')
 vim.keymap.set('', '<C-k>', '<C-W>k')
@@ -710,7 +714,21 @@ vim.keymap.set('n', 'Y', 'y$')
 
 if vim.fn.getenv("TERM_PROGRAM") == "ghostty" then
   vim.opt.title = true
-  vim.opt.titlestring = "%{getcwd()}/%{bufname()}"
+
+  local function update_title()
+    local root = vim.fn.systemlist('git rev-parse --show-toplevel 2>/dev/null')
+    if vim.v.shell_error == 0 and #root > 0 and root[1] ~= '' then
+      vim.opt.titlestring = vim.fn.fnamemodify(root[1], ':t')
+    else
+      vim.opt.titlestring = vim.fn.fnamemodify(vim.fn.getcwd(), ':t')
+    end
+  end
+
+  update_title()
+
+  vim.api.nvim_create_autocmd({'DirChanged', 'VimEnter'}, {
+    callback = update_title,
+  })
 end
 
 -- Open help window in a vertical split to the right.
@@ -754,17 +772,17 @@ vim.api.nvim_create_autocmd('Filetype', {
 })
 
 -- -- ClaudeCode mapping
-vim.keymap.set('n', '<C-t>', ':ClaudeCode<CR>', { noremap = true, silent = true })
-vim.keymap.set('n', '<leader>aa', '<cmd>ClaudeCodeAdd %<cr>', { desc = "Add current buffer" })
-vim.keymap.set({'n', 'v'}, '<leader>as', '<cmd>ClaudeCodeSend<cr>', { desc = "Send to Claude" })
+-- vim.keymap.set('n', '<C-t>', ':ClaudeCode<CR>', { noremap = true, silent = true })
+-- vim.keymap.set('n', '<leader>aa', '<cmd>ClaudeCodeAdd %<cr>', { desc = "Add current buffer" })
+-- vim.keymap.set({'n', 'v'}, '<leader>as', '<cmd>ClaudeCodeSend<cr>', { desc = "Send to Claude" })
 
 -- -- Amp mapping
--- vim.keymap.set('n', '<leader>ab', '<cmd>AmpBuffer<cr>', { desc = "Create Amp buffer" })
--- vim.keymap.set('x', '<leader>ab', ":'<,'>AmpBuffer<CR>", { desc = "Create Amp buffer from selection" })
--- -- vim.keymap.set('n', '<leader>as', '<cmd>AmpSendBuffer<cr>', { desc = "Send buffer to Amp" })
--- vim.keymap.set('v', '<leader>as', ":'<,'>AmpPromptRef<CR>", { desc = "Send selection to Prompt" })
+vim.keymap.set('n', '<leader>ab', '<cmd>AmpBuffer<cr>', { desc = "Create Amp buffer" })
+vim.keymap.set('x', '<leader>ab', ":'<,'>AmpBuffer<CR>", { desc = "Create Amp buffer from selection" })
+vim.keymap.set('n', '<leader>as', '<cmd>AmpSendBuffer<cr>', { desc = "Send buffer to Amp" })
+vim.keymap.set('v', '<leader>as', ":'<,'>AmpPromptRef<CR>", { desc = "Send selection to Prompt" })
 -- vim.keymap.set('n', '<leader>am', '<cmd>AmpMessage %<cr>', { desc = "Send message to Amp" })
--- vim.keymap.set('x', '<leader>aa', ":'<,'>AmpAppendBuffer<CR>", { desc = "Append selection to Amp buffer" })
+vim.keymap.set('x', '<leader>aa', ":'<,'>AmpAppendBuffer<CR>", { desc = "Append selection to Amp buffer" })
 
 -- Add selected text directly to prompt
 vim.api.nvim_create_user_command("AmpPromptSelection", function(opts)
@@ -836,10 +854,25 @@ vim.api.nvim_create_user_command("AmpBuffer", function(opts)
 		end
 	end
 
+	local target_buf
 	if existing_buf then
-		-- Open existing buffer in a vertical split
-		vim.cmd("vsplit")
-		vim.api.nvim_win_set_buf(0, existing_buf)
+		-- Check if existing buffer is already visible in a window
+		local existing_win = nil
+		for _, win in ipairs(vim.api.nvim_list_wins()) do
+			if vim.api.nvim_win_get_buf(win) == existing_buf then
+				existing_win = win
+				break
+			end
+		end
+
+		if existing_win then
+			-- Switch to existing window
+			vim.api.nvim_set_current_win(existing_win)
+		else
+			-- Open existing buffer in a vertical split
+			vim.cmd("vsplit")
+			vim.api.nvim_win_set_buf(0, existing_buf)
+		end
 
 		-- Only append new lines if we have a selection
 		if #lines > 0 then
@@ -852,7 +885,7 @@ vim.api.nvim_create_user_command("AmpBuffer", function(opts)
 			end
 			vim.api.nvim_buf_set_lines(existing_buf, 0, -1, false, existing_lines)
 		end
-		-- If no selection, just open the existing buffer without modifying it
+		target_buf = existing_buf
 	else
 		-- Create new buffer
 		vim.cmd("vsplit")
@@ -867,7 +900,17 @@ vim.api.nvim_create_user_command("AmpBuffer", function(opts)
 		if #lines > 0 then
 			vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
 		end
+		target_buf = buf
 	end
+
+	-- Add empty lines at end and move cursor there
+	local current_lines = vim.api.nvim_buf_get_lines(target_buf, 0, -1, false)
+	-- Only add newlines if buffer has content
+	if #current_lines > 0 and current_lines[1] ~= "" then
+		vim.api.nvim_buf_set_lines(target_buf, -1, -1, false, { "", "" })
+	end
+	local line_count = vim.api.nvim_buf_line_count(target_buf)
+	vim.api.nvim_win_set_cursor(0, { line_count, 0 })
 end, {
 	nargs = 0,
 	desc = "Open scratch buffer for Amp prompts",
@@ -985,19 +1028,45 @@ end, {
 -- automatically resize all vim buffers if I resize the terminal window
 vim.api.nvim_command('autocmd VimResized * wincmd =')
 
+-- OSC 7: Report working directory to terminal (for Ghostty split inheritance)
 -- https://github.com/neovim/neovim/issues/21771
-local exitgroup = vim.api.nvim_create_augroup('setDir', { clear = true })
+local function osc7_notify()
+  local cwd = vim.fn.getcwd()
+  -- If inside a .git directory, report the parent instead
+  if cwd:match('/.git$') or cwd:match('/.git/') then
+    cwd = cwd:gsub('/.git.*$', '')
+  end
+  -- Omit hostname for simpler parsing by tmux (file:///path instead of file://hostname/path)
+  local osc7 = string.format("\027]7;file://%s\007", cwd)
+  vim.fn.chansend(vim.v.stderr, osc7)
+end
+
+local osc7_group = vim.api.nvim_create_augroup('osc7', { clear = true })
+
+-- Send on directory change
 vim.api.nvim_create_autocmd('DirChanged', {
-  group = exitgroup,
+  group = osc7_group,
   pattern = { '*' },
-  command = [[call chansend(v:stderr, printf("\033]7;file://%s\033\\", v:event.cwd))]],
+  callback = osc7_notify,
 })
 
-vim.api.nvim_create_autocmd('VimLeave', {
-  group = exitgroup,
+-- Send on buffer enter (autochdir may change dir without firing DirChanged)
+vim.api.nvim_create_autocmd('BufEnter', {
+  group = osc7_group,
   pattern = { '*' },
-  command = [[call chansend(v:stderr, "\033]7;\033\\")]],
+  callback = osc7_notify,
 })
+
+-- Send on Neovim startup
+vim.api.nvim_create_autocmd('VimEnter', {
+  group = osc7_group,
+  pattern = { '*' },
+  callback = osc7_notify,
+})
+
+-- Note: We intentionally don't clear OSC 7 on VimLeave.
+-- The shell (fish) will report its own working directory after Vim exits.
+-- Sending an empty OSC 7 here causes Ghostty to lose track of the CWD.
 
 
 -- put quickfix window always to the bottom
@@ -1068,7 +1137,18 @@ vim.api.nvim_create_autocmd('LspAttach', {
     vim.keymap.set('n', '<leader>v', "<cmd>vsplit | lua vim.lsp.buf.definition()<CR>", opts)
     vim.keymap.set('n', '<leader>s', "<cmd>belowright split | lua vim.lsp.buf.definition()<CR>", opts)
 
-    vim.keymap.set('n', 'gr', vim.lsp.buf.references, opts)
+    vim.keymap.set('n', 'gr', function()
+      vim.lsp.buf.references(nil, {
+        on_list = function(options)
+          vim.fn.setqflist({}, ' ', options)
+          if #options.items > 0 then
+            vim.cmd('copen')
+            vim.cmd('cfirst')
+            vim.cmd('normal! zz')
+          end
+        end
+      })
+    end, opts)
     vim.keymap.set('n', 'gD', vim.lsp.buf.declaration, opts)
     vim.keymap.set('n', 'gi', vim.lsp.buf.implementation, opts)
     vim.keymap.set('n', '<leader>cl', vim.lsp.codelens.run, opts)
