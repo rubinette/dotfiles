@@ -1,6 +1,6 @@
 [user]
-	name = Fatih Arslan
-	email = ftharsln@gmail.com
+	name = rubinette
+	email = rubinette@hey.com
 
 [includeIf "gitdir:~/Code/ps/"]
     	path = ~/Code/ps/gitconfig
@@ -39,11 +39,11 @@
 	whitespace=fix,-indent-with-non-tab,trailing-space,cr-at-eol
 	editor = nvim
 	quotepath = false
-	excludesfile = /Users/fatih/.gitignore
+	excludesfile = /Users/rubinette/.gitignore_global
 [credential]
 	helper = osxkeychain
 [github]
-	user = fatih
+	user = rubinette
 [mergetool]
 	keepBackup = true
 [filter "media"]
