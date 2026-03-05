@@ -940,3 +940,134 @@ end, {
   range = true,
   desc = "Add file reference (with selection) to amp-scratch buffer",
 })
+
+-- automatically resize all vim buffers if I resize the terminal window
+vim.api.nvim_command('autocmd VimResized * wincmd =')
+
+-- OSC 7: Report working directory to terminal (for Ghostty split inheritance)
+-- https://github.com/neovim/neovim/issues/21771
+local function osc7_notify()
+  local cwd = vim.fn.getcwd()
+  -- If inside a .git directory, report the parent instead
+  if cwd:match('/.git$') or cwd:match('/.git/') then
+    cwd = cwd:gsub('/.git.*$', '')
+  end
+  -- Omit hostname for simpler parsing by tmux (file:///path instead of file://hostname/path)
+  local osc7 = string.format("\027]7;file://%s\007", cwd)
+  vim.fn.chansend(vim.v.stderr, osc7)
+end
+
+local osc7_group = vim.api.nvim_create_augroup('osc7', { clear = true })
+
+-- Send on directory change
+vim.api.nvim_create_autocmd('DirChanged', {
+  group = osc7_group,
+  pattern = { '*' },
+  callback = osc7_notify,
+})
+
+-- Send on buffer enter (autochdir may change dir without firing DirChanged)
+vim.api.nvim_create_autocmd('BufEnter', {
+  group = osc7_group,
+  pattern = { '*' },
+  callback = osc7_notify,
+})
+
+-- Send on Neovim startup
+vim.api.nvim_create_autocmd('VimEnter', {
+  group = osc7_group,
+  pattern = { '*' },
+  callback = osc7_notify,
+})
+
+-- Note: We intentionally don't clear OSC 7 on VimLeave.
+-- The shell (fish) will report its own working directory after Vim exits.
+-- Sending an empty OSC 7 here causes Ghostty to lose track of the CWD.
+
+
+-- put quickfix window always to the bottom
+local qfgroup = vim.api.nvim_create_augroup('changeQuickfix', { clear = true })
+vim.api.nvim_create_autocmd('FileType', {
+  pattern = 'qf',
+  group = qfgroup,
+  command = 'wincmd J',
+})
+
+vim.api.nvim_create_autocmd('FileType', {
+  pattern = 'qf',
+  group = qfgroup,
+  command = 'setlocal wrap',
+})
+
+-- Highlight when yanking (copying) text
+--  Try it with `yap` in normal mode
+--  See `:help vim.highlight.on_yank()`
+vim.api.nvim_create_autocmd('TextYankPost', {
+  desc = 'Highlight when yanking (copying) text',
+  group = vim.api.nvim_create_augroup('kickstart-highlight-yank', { clear = true }),
+  callback = function()
+    vim.highlight.on_yank()
+  end,
+})
+
+-- disable diagnostics, I didn't like them
+vim.diagnostic.config({
+  virtual_text = false,
+  signs = false,
+  underline = false,
+  update_in_insert = false,
+})
+
+-- Run gofmt/gofmpt, import packages automatically on save
+vim.api.nvim_create_autocmd('BufWritePre', {
+  group = vim.api.nvim_create_augroup('setGoFormatting', { clear = true }),
+  pattern = '*.go',
+  callback = function()
+    local params = vim.lsp.util.make_range_params()
+    params.context = { only = { "source.organizeImports" } }
+    local result = vim.lsp.buf_request_sync(0, "textDocument/codeAction", params, 2000)
+    for _, res in pairs(result or {}) do
+      for _, r in pairs(res.result or {}) do
+        if r.edit then
+          vim.lsp.util.apply_workspace_edit(r.edit, "utf-16")
+        else
+          vim.lsp.buf.execute_command(r.command)
+        end
+      end
+    end
+
+    vim.lsp.buf.format()
+  end
+})
+
+-- Use LspAttach autocommand to only map the following keys
+-- after the language server attaches to the current buffer
+vim.api.nvim_create_autocmd('LspAttach', {
+  group = vim.api.nvim_create_augroup('UserLspConfig', {}),
+  callback = function(ev)
+    -- Buffer local mappings.
+    -- See `:help vim.lsp.*` for documentation on any of the below functions
+    local opts = { buffer = ev.buf }
+
+    vim.keymap.set('n', 'gd', "<cmd>lua vim.lsp.buf.definition()<CR>", opts)
+    vim.keymap.set('n', '<leader>v', "<cmd>vsplit | lua vim.lsp.buf.definition()<CR>", opts)
+    vim.keymap.set('n', '<leader>s', "<cmd>belowright split | lua vim.lsp.buf.definition()<CR>", opts)
+
+    vim.keymap.set('n', 'gr', function()
+      vim.lsp.buf.references(nil, {
+        on_list = function(options)
+          vim.fn.setqflist({}, ' ', options)
+          if #options.items > 0 then
+            vim.cmd('copen')
+            vim.cmd('cfirst')
+            vim.cmd('normal! zz')
+          end
+        end
+      })
+    end, opts)
+    vim.keymap.set('n', 'gD', vim.lsp.buf.declaration, opts)
+    vim.keymap.set('n', 'gi', vim.lsp.buf.implementation, opts)
+    vim.keymap.set('n', '<leader>cl', vim.lsp.codelens.run, opts)
+    vim.keymap.set('n', '<leader>rn', vim.lsp.buf.rename, opts)
+  end,
+})
