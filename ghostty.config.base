@@ -1,5 +1,5 @@
 # The configuration can be reloaded at runtime by cmd+shift+, (macOS). 
-theme = light:Gruvbox Light Hard,dark:Gruvbox Dark Hard
+theme = light:Nord Light,dark:Nord
 
 font-family = "TX-02"
 font-size = 14

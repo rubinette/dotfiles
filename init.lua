@@ -41,7 +41,7 @@ end })
 --- plugins ---
 ----------------
 vim.pack.add({
-  'https://github.com/ellisonleao/gruvbox.nvim',
+  'https://github.com/shaunsingh/nord.nvim',
   'https://github.com/cormacrelf/dark-notify',
   'https://github.com/nvim-tree/nvim-web-devicons',
   'https://github.com/nvim-lualine/lualine.nvim',
@@ -73,15 +73,14 @@ vim.pack.add({
 --------------------------
 
 -- Colorscheme
-require("gruvbox").setup({ contrast = "hard" })
-vim.cmd([[colorscheme gruvbox]])
+vim.cmd([[colorscheme nord]])
 
 -- Automatic dark mode (requires: brew install cormacrelf/tap/dark-notify)
 require("dark_notify").run()
 
 -- Statusline
 require("lualine").setup({
-  options = { theme = 'gruvbox' },
+  options = { theme = 'nord' },
   sections = {
     lualine_b = {
       'branch',

@@ -14,7 +14,7 @@ Plug 'corylanou/vim-present', {'for' : 'present'}
 Plug 'ekalinin/Dockerfile.vim', {'for' : 'Dockerfile'}
 Plug 'elzr/vim-json', {'for' : 'json'}
 Plug 'ervandew/supertab'
-Plug 'gruvbox-community/gruvbox'
+Plug 'nordtheme/vim'
 Plug 'edkolev/tmuxline.vim'
 Plug 'vim-airline/vim-airline'
 Plug 'fatih/vim-go'
@@ -115,18 +115,15 @@ syntax enable
 let &t_8f = "\<Esc>[38;2;%lu;%lu;%lum"
 let &t_8b = "\<Esc>[48;2;%lu;%lu;%lum"
 set termguicolors
-let g:gruvbox_contrast_dark = "hard"
-let g:gruvbox_contrast_light = "hard"
-
 " ChangeBackground changes the background mode based on macOS's `Appearance`
 " setting. We also refresh the statusline colors to reflect the new mode.
 function! ChangeBackground()
   if system("defaults read -g AppleInterfaceStyle") =~ '^Dark'
-    set background=dark   " for dark version of theme
+    set background=dark
   else
-    set background=light  " for light version of theme
+    set background=light
   endif
-  colorscheme gruvbox
+  colorscheme nord
 
   try
     execute "AirlineRefresh"

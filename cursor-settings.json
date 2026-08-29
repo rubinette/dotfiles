@@ -55,7 +55,7 @@
   "explorer.confirmDelete": false,
   "explorer.confirmDragAndDrop": false,
   "window.autoDetectColorScheme": true,
-  "workbench.preferredLightColorTheme": "Cursor Light",
+  "workbench.preferredLightColorTheme": "Nord Light",
   "workbench.iconTheme": "vs-seti",
   "workbench.editor.enablePreview": false,
   "workbench.editor.enablePreviewFromQuickOpen": false,
@@ -78,7 +78,7 @@
     "editor.formatOnSave": true
   },
   "workbench.settings.openDefaultKeybindings": true,
-  "workbench.preferredDarkColorTheme": "Gruvbox Dark Hard",
+  "workbench.preferredDarkColorTheme": "Nord",
   "editor.renderControlCharacters": false,
   "go.toolsManagement.autoUpdate": true,
   "cursor.composer.usageSummaryDisplay": "always",

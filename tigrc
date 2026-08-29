@@ -11,8 +11,8 @@ set show-changes = no
 # Optionally, use the old and faster but less acurate graph renderer
 set main-view-commit-title-graph = v1
 
-# Gruvbox colorscheme — uses ANSI colors so Ghostty theme controls the shades
-# automatically adapts to light/dark via Gruvbox Light Hard / Gruvbox Dark Hard
+# Uses ANSI colors so Ghostty theme controls the shades.
+# Automatically adapts to light/dark via Nord Light / Nord.
 color default default default
 color cursor black color10 bold
 color title-focus default white bold
